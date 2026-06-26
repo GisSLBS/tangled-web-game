@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Tangled Web — Angles Game</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#1a0f08;color:#e8dcc8;font-family:system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px;
+    background-image:radial-gradient(circle at 30% 20%,#2a1810 0%,#120a04 70%)}
+  h1{font-size:24px;font-weight:700;color:#f59e0b;margin-bottom:2px;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,0,0,0.6)}
+  #subtitle{font-size:12px;color:#a0826d;margin-bottom:10px;text-align:center}
+  #hud{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+  .hud-card{background:rgba(40,24,14,0.8);border:1px solid #5a3a1a;border-radius:8px;padding:4px 12px;font-size:11px;color:#a0826d;text-align:center}
+  .hud-card span{font-size:15px;font-weight:700;color:#f0c674;display:block}
+  #energy-wrap{width:120px;height:22px;background:#1a0f08;border:1px solid #5a3a1a;border-radius:6px;overflow:hidden;position:relative}
+  #energy-bar{height:100%;background:linear-gradient(90deg,#22c55e,#86efac);transition:width 0.3s,background 0.3s}
+  #energy-label{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#06251a;text-shadow:0 1px 1px rgba(255,255,255,0.3)}
+  #canvas-wrap{position:relative;border:2px solid #5a3a1a;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+  canvas{display:block;background:#0a0604}
+  #msg-box{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(20,12,6,0.97);border:2px solid #f59e0b;border-radius:14px;padding:26px 32px;text-align:center;color:#e8dcc8;min-width:260px;display:none;z-index:10;box-shadow:0 8px 32px rgba(0,0,0,0.7)}
+  #msg-box h2{font-size:20px;font-weight:700;margin-bottom:8px;color:#f59e0b}
+  #msg-box p{font-size:14px;color:#a0826d;margin-bottom:18px;line-height:1.5}
+  #msg-box button{background:#f59e0b;color:#1a0f08;border:none;border-radius:8px;padding:10px 24px;font-size:15px;cursor:pointer;font-weight:700}
+  #msg-box button:hover{background:#fbbf24}
+  #controls{margin-top:10px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .rot-btn{width:54px;height:54px;border-radius:50%;background:rgba(40,24,14,0.9);border:2px solid #5a3a1a;color:#f0c674;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none}
+  .rot-btn:hover{background:#3a2410;border-color:#f59e0b}
+  .rot-btn:active{transform:scale(0.92)}
+  #control-hint{font-size:11px;color:#8a6a4d;text-align:center;flex-basis:100%}
+  #panel{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;width:100%;max-width:660px}
+  #hint-area{flex:1;min-width:210px;background:rgba(40,24,14,0.7);border:1px solid #5a3a1a;border-radius:8px;padding:11px 14px;font-size:13px;color:#c0a888;line-height:1.6;min-height:78px}
+  #hint-area strong{color:#f0c674;font-weight:700}
+  #hint-area em{color:#8a6a4d;font-style:italic;font-size:12px}
+  #answer-area{display:flex;flex-direction:column;gap:6px;min-width:200px}
+  #answer-area label{font-size:12px;color:#8a6a4d}
+  #ans-input{width:100%;padding:8px 12px;font-size:16px;border-radius:8px;border:1px solid #5a3a1a;background:#1a0f08;color:#f0c674;outline:none}
+  #ans-input:focus{border-color:#f59e0b}
+  #btn-row{display:flex;gap:6px}
+  #btn-row button{flex:1;padding:8px 8px;font-size:12px;border-radius:8px;cursor:pointer;border:1px solid #5a3a1a;background:#2a1810;color:#f0c674;font-weight:600}
+  #btn-row button:hover{background:#3a2410}
+  #btn-check{background:#f59e0b!important;color:#1a0f08!important;border-color:#f59e0b!important}
+  #btn-check:hover{background:#fbbf24!important}
+  #feedback{font-size:12px;min-height:16px;color:#8a6a4d}
+  .correct-fb{color:#4ade80!important}
+  .wrong-fb{color:#f87171!important}
+  #stage-info{margin-top:12px;background:rgba(20,12,6,0.6);border:1px solid #5a3a1a;border-radius:10px;padding:10px 16px;font-size:12px;color:#8a6a4d;max-width:660px;width:100%;line-height:1.7}
+  #stage-info strong{color:#f0c674}
+  @media(max-width:540px){
+    canvas{width:100%!important;height:auto!important}
+    #panel{flex-direction:column}#answer-area{min-width:100%}
+  }
+</style>
+</head>
+<body>
+<h1>🕷️ A TANGLED WEB</h1>
+<div id="subtitle">Rotate the cog to roll Itzi · solve angle puzzles to clear the webs · collect the glo-flies!</div>
+<div id="hud">
+  <div class="hud-card">Energy
+    <div id="energy-wrap"><div id="energy-bar" style="width:100%"></div><div id="energy-label">100%</div></div>
+  </div>
+  <div class="hud-card">Score<span id="score-disp">0</span></div>
+  <div class="hud-card">Stage<span id="stage-disp">1/6</span></div>
+  <div class="hud-card">Glo-Flies<span id="flies-disp">0/0</span></div>
+  <div class="hud-card">Time<span id="time-disp">0:00</span></div>
+</div>
+<div id="canvas-wrap">
+  <canvas id="gc" width="560" height="560"></canvas>
+  <div id="msg-box"><h2 id="mb-title"></h2><p id="mb-body"></p><button id="mb-btn">OK</button></div>
+</div>
+<div id="controls">
+  <div class="rot-btn" id="rot-left">⟲</div>
+  <div class="rot-btn" id="rot-right">⟳</div>
+  <div id="control-hint">Use ← → arrow keys or the buttons to rotate the cog. Click a glowing angle (?) to solve it.</div>
+</div>
+<div id="panel">
+  <div id="hint-area">Rotate the cog so Itzi rolls around. Click a <strong>glowing ? angle</strong> on a web line to solve it and clear the path!</div>
+  <div id="answer-area">
+    <label>Missing angle (degrees °)</label>
+    <input id="ans-input" type="number" min="0" max="720" placeholder="e.g. 108">
+    <div id="btn-row">
+      <button id="btn-hint">💡 Hint</button>
+      <button id="btn-restart">↺ Restart</button>
+      <button id="btn-check">Solve ✓</button>
+    </div>
+    <div id="feedback"></div>
+  </div>
+</div>
+<div id="stage-info"><strong id="stage-title">Stage 1: Basic angle rules</strong><span id="stage-desc"> — angles on a line, at a point, and vertically opposite.</span></div>
+
+<script>
+const canvas=document.getElementById('gc'),ctx=canvas.getContext('2d');
+const W=560,H=560,CX=280,CY=280,COG_R=230,PLAY_R=210;
+let GRAV=0.32;
+
+const STAGES=[
+  {
+    title:"Stage 1: Basic angle rules",
+    desc:"angles on a line, at a point, and vertically opposite.",
+    puzzles:[
+      {label:"a",known:"a sits on a straight line next to an angle of 118°.",answer:62,hint:"Angles on a straight line add to 180°. a = 180 − 118.",rule:"Angles on a straight line = 180°"},
+      {label:"b",known:"three angles meet at a point: 140°, 95°, and b.",answer:125,hint:"Angles at a point add to 360°. b = 360 − 140 − 95.",rule:"Angles at a point = 360°"},
+      {label:"c",known:"c is vertically opposite an angle of 73°.",answer:73,hint:"Vertically opposite angles are equal. c = 73.",rule:"Vertically opposite angles are equal"},
+    ],
+  },
+  {
+    title:"Stage 2: Parallel lines",
+    desc:"corresponding, alternate, and co-interior angles.",
+    puzzles:[
+      {label:"a",known:"a corresponds to an angle of 67° on a parallel line.",answer:67,hint:"Corresponding (F) angles are equal. a = 67.",rule:"Corresponding angles are equal"},
+      {label:"b",known:"b is alternate to an angle of 54°.",answer:54,hint:"Alternate (Z) angles are equal. b = 54.",rule:"Alternate angles are equal"},
+      {label:"c",known:"c is co-interior with an angle of 109°.",answer:71,hint:"Co-interior (C) angles add to 180°. c = 180 − 109.",rule:"Co-interior angles add to 180°"},
+    ],
+  },
+  {
+    title:"Stage 3: Triangles",
+    desc:"scalene, isosceles, equilateral, and exterior angles.",
+    puzzles:[
+      {label:"a",known:"a triangle with angles 47°, 68°, and a.",answer:65,hint:"Triangle angles add to 180°. a = 180 − 47 − 68.",rule:"Angles in a triangle = 180°"},
+      {label:"b",known:"an isosceles triangle with one base angle of 52°. Find the apex angle b.",answer:76,hint:"Both base angles = 52°. b = 180 − 52 − 52.",rule:"Isosceles: two base angles are equal"},
+      {label:"c",known:"the exterior angle c, with interior opposite angles 58° and 64°.",answer:122,hint:"Exterior angle = sum of opposite interiors. c = 58 + 64.",rule:"Exterior angle = sum of two opposite interior angles"},
+    ],
+  },
+  {
+    title:"Stage 4: Quadrilaterals",
+    desc:"squares, parallelograms, kites, trapeziums.",
+    puzzles:[
+      {label:"a",known:"a quadrilateral with three angles 85°, 97°, 110° and a.",answer:68,hint:"Quadrilateral angles add to 360°. a = 360 − 85 − 97 − 110.",rule:"Angles in any quadrilateral = 360°"},
+      {label:"b",known:"a parallelogram where one angle is 113°. Find the adjacent angle b.",answer:67,hint:"Adjacent angles in a parallelogram add to 180°. b = 180 − 113.",rule:"Adjacent angles in a parallelogram = 180°"},
+      {label:"c",known:"a kite with angles 105°, 78°, 105° and c.",answer:72,hint:"Kite angles add to 360°. c = 360 − 105 − 78 − 105.",rule:"Angles in a quadrilateral = 360°"},
+    ],
+  },
+  {
+    title:"Stage 5: Polygons",
+    desc:"interior & exterior angles of regular and irregular polygons.",
+    puzzles:[
+      {label:"a",known:"a regular pentagon — find one interior angle a.",answer:108,hint:"Interior sum = (5−2)×180 = 540. Each angle = 540 ÷ 5.",rule:"Interior sum = (n−2)×180°"},
+      {label:"b",known:"a regular hexagon — find one exterior angle b.",answer:60,hint:"Exterior angles always sum to 360°. b = 360 ÷ 6.",rule:"Sum of exterior angles = 360°"},
+      {label:"c",known:"a regular octagon — find one interior angle c.",answer:135,hint:"Interior sum = (8−2)×180 = 1080. Each = 1080 ÷ 8.",rule:"Interior sum = (n−2)×180°"},
+      {label:"d",known:"a regular decagon (10 sides) — find one interior angle d.",answer:144,hint:"Interior sum = (10−2)×180 = 1440. Each = 1440 ÷ 10.",rule:"Interior sum = (n−2)×180°"},
+    ],
+  },
+  {
+    title:"Stage 6: Circle theorems",
+    desc:"semicircle, centre/circumference, cyclic quads, same segment.",
+    puzzles:[
+      {label:"a",known:"a is the angle in a semicircle (subtended by the diameter).",answer:90,hint:"Angle in a semicircle = 90°.",rule:"Angle in a semicircle = 90°"},
+      {label:"b",known:"the angle at the centre is 130°. Find b at the circumference (same arc).",answer:65,hint:"Angle at centre = 2 × angle at circumference. b = 130 ÷ 2.",rule:"Angle at centre = 2 × angle at circumference"},
+      {label:"c",known:"a cyclic quadrilateral where the opposite angle to c is 96°.",answer:84,hint:"Opposite cyclic-quad angles add to 180°. c = 180 − 96.",rule:"Opposite cyclic quad angles = 180°"},
+    ],
+  },
+];
+
+let stageIdx=0,score=0,energy=100,startTime=0,elapsed=0;
+let cogAngle=0,cogVel=0;
+let itzi={ang:Math.PI/2,r:PLAY_R-16,vel:0};
+let lines=[],flies=[],warpGate=null;
+let selectedLine=null,hintsUsed=0,gamePhase='playing';
+let keys={left:false,right:false};
+
+function initStage(){
+  const st=STAGES[stageIdx];
+  cogAngle=0;cogVel=0;energy=100;hintsUsed=0;selectedLine=null;gamePhase='playing';
+  startTime=Date.now();elapsed=0;
+  itzi={ang:Math.PI/2+0.3,r:PLAY_R-16,vel:0};
+
+  lines=st.puzzles.map((p,i)=>{
+    const baseA=(Math.PI/st.puzzles.length)*i;
+    const offset=(i%2===0?1:-1)*(40+i*18);
+    return {puzzle:p,solved:false,reappearTimer:0,orient:baseA,dist:offset};
+  });
+
+  flies=[];
+  const nf=st.puzzles.length;
+  for(let i=0;i<nf;i++){
+    const a=(Math.PI*2/nf)*i+0.6;
+    flies.push({x:CX+Math.cos(a)*(PLAY_R*0.5),y:CY+Math.sin(a)*(PLAY_R*0.5),got:false});
+  }
+  warpGate={ang:-Math.PI/2,r:PLAY_R-22};
+
+  document.getElementById('stage-disp').textContent=(stageIdx+1)+'/6';
+  document.getElementById('stage-title').textContent=st.title;
+  document.getElementById('stage-desc').textContent=' — '+st.desc;
+  document.getElementById('feedback').textContent='';
+  document.getElementById('ans-input').value='';
+  document.getElementById('hint-area').innerHTML='Rotate the cog so Itzi rolls around. Click a <strong>glowing ? angle</strong> to solve it and clear that web line!';
+  updateHUD();hideMsg();
+}
+
+function updateHUD(){
+  document.getElementById('score-disp').textContent=Math.round(score);
+  document.getElementById('flies-disp').textContent=flies.filter(f=>f.got).length+'/'+flies.length;
+  const eb=document.getElementById('energy-bar');
+  eb.style.width=Math.max(0,energy)+'%';
+  document.getElementById('energy-label').textContent=Math.max(0,Math.round(energy))+'%';
+  if(energy>50)eb.style.background='linear-gradient(90deg,#22c55e,#86efac)';
+  else if(energy>25)eb.style.background='linear-gradient(90deg,#f59e0b,#fbbf24)';
+  else eb.style.background='linear-gradient(90deg,#dc2626,#f87171)';
+  const m=Math.floor(elapsed/60),s=elapsed%60;
+  document.getElementById('time-disp').textContent=m+':'+String(s).padStart(2,'0');
+}
+
+function showMsg(t,b,bt,cb){
+  document.getElementById('mb-title').textContent=t;
+  document.getElementById('mb-body').textContent=b;
+  document.getElementById('mb-btn').textContent=bt;
+  document.getElementById('mb-btn').onclick=cb;
+  document.getElementById('msg-box').style.display='block';
+}
+function hideMsg(){document.getElementById('msg-box').style.display='none';}
+function allSolved(){return lines.every(l=>l.solved);}
+function allFlies(){return flies.every(f=>f.got);}
+
+function lineEndpoints(l){
+  const a=l.orient+cogAngle;
+  const pxc=CX+Math.cos(a+Math.PI/2)*l.dist;
+  const pyc=CY+Math.sin(a+Math.PI/2)*l.dist;
+  const half=Math.sqrt(Math.max(0,PLAY_R*PLAY_R-l.dist*l.dist));
+  return {
+    x1:pxc+Math.cos(a)*half,y1:pyc+Math.sin(a)*half,
+    x2:pxc-Math.cos(a)*half,y2:pyc-Math.sin(a)*half,
+    qx:pxc+Math.cos(a)*(half*0.5),qy:pyc+Math.sin(a)*(half*0.5)
+  };
+}
+
+function physics(){
+  if(gamePhase!=='playing')return;
+  elapsed=Math.floor((Date.now()-startTime)/1000);
+
+  if(keys.left)cogVel-=0.0045;
+  if(keys.right)cogVel+=0.0045;
+  cogVel*=0.92;cogAngle+=cogVel;
+
+  itzi.vel+=Math.cos(itzi.ang)*GRAV*0.02;
+  itzi.vel+=cogVel*0.22;
+  itzi.vel*=0.96;
+  itzi.ang+=itzi.vel;
+  itzi.r=PLAY_R-16;
+
+  const ix=CX+Math.cos(itzi.ang)*itzi.r;
+  const iy=CY+Math.sin(itzi.ang)*itzi.r;
+
+  lines.forEach(l=>{
+    if(l.solved){
+      if(l.reappearTimer>0){l.reappearTimer--;if(l.reappearTimer===0)l.solved=false;}
+      return;
+    }
+    const ep=lineEndpoints(l);
+    if(pointSegDist(ix,iy,ep.x1,ep.y1,ep.x2,ep.y2)<16){
+      itzi.vel*=-0.5;itzi.ang+=itzi.vel*1.5;energy-=0.22;
+    }
+  });
+
+  flies.forEach(f=>{if(!f.got&&Math.hypot(ix-f.x,iy-f.y)<22){f.got=true;score+=500;}});
+
+  const wx=CX+Math.cos(warpGate.ang)*warpGate.r,wy=CY+Math.sin(warpGate.ang)*warpGate.r;
+  if(Math.hypot(ix-wx,iy-wy)<26&&allSolved()&&allFlies())stageWin();
+
+  if(energy<=0){energy=0;stageFail();}
+  updateHUD();
+}
+
+function pointSegDist(px,py,x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;
+  let t=l2?((px-x1)*dx+(py-y1)*dy)/l2:0;t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+
+function stageWin(){
+  gamePhase='win';
+  const timeBonus=Math.max(0,300-elapsed),energyBonus=Math.round(energy*30);
+  score+=timeBonus+energyBonus+1000;updateHUD();
+  if(stageIdx<STAGES.length-1){
+    showMsg('Stage '+(stageIdx+1)+' Complete! 🎉','Energy bonus +'+energyBonus+', time bonus +'+timeBonus+'. Itzi rescued a family member! Score: '+Math.round(score),'Next Stage →',()=>{stageIdx++;initStage();});
+  } else {
+    showMsg('You Win! 🕷️🎉','Itzi\'s whole family is home safe! You mastered all 6 stages. Final score: '+Math.round(score),'Play Again',()=>{stageIdx=0;score=0;initStage();});
+  }
+}
+function stageFail(){
+  gamePhase='fail';
+  showMsg('Out of energy! 💔','Itzi ran out of energy. Try the stage again!','Retry Stage',()=>initStage());
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0604';ctx.fillRect(0,0,W,H);
+
+  ctx.save();ctx.translate(CX,CY);ctx.rotate(cogAngle);
+  const teeth=48;
+  for(let i=0;i<teeth;i++){
+    ctx.save();ctx.rotate((Math.PI*2/teeth)*i);
+    ctx.fillStyle='#6b4423';ctx.fillRect(COG_R-4,-7,16,14);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  ctx.beginPath();ctx.arc(CX,CY,COG_R,0,Math.PI*2);ctx.strokeStyle='#8a5a2a';ctx.lineWidth=10;ctx.stroke();
+  ctx.beginPath();ctx.arc(CX,CY,COG_R-8,0,Math.PI*2);ctx.strokeStyle='#5a3a1a';ctx.lineWidth=4;ctx.stroke();
+
+  ctx.beginPath();ctx.arc(CX,CY,PLAY_R,0,Math.PI*2);ctx.fillStyle='#120c06';ctx.fill();
+  ctx.strokeStyle='rgba(138,90,42,0.4)';ctx.lineWidth=1;ctx.stroke();
+
+  ctx.save();ctx.strokeStyle='rgba(200,170,130,0.04)';ctx.lineWidth=0.5;
+  for(let r=40;r<PLAY_R;r+=40){ctx.beginPath();ctx.arc(CX,CY,r,0,Math.PI*2);ctx.stroke();}
+  for(let a=0;a<Math.PI*2;a+=Math.PI/8){ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(CX+Math.cos(a)*PLAY_R,CY+Math.sin(a)*PLAY_R);ctx.stroke();}
+  ctx.restore();
+
+  lines.forEach((l,i)=>{
+    if(l.solved&&l.reappearTimer===0)return;
+    const ep=lineEndpoints(l),sel=selectedLine===i,fading=l.solved&&l.reappearTimer>0;
+    ctx.save();ctx.lineWidth=sel?5:3;
+    if(fading)ctx.strokeStyle='rgba(74,222,128,0.3)';
+    else if(sel){ctx.strokeStyle='#f59e0b';ctx.shadowBlur=14;ctx.shadowColor='#f59e0b';const t=Date.now()/300;ctx.setLineDash([10+Math.sin(t)*3,5]);}
+    else{ctx.strokeStyle='#e0c8a0';ctx.shadowBlur=6;ctx.shadowColor='rgba(224,200,160,0.5)';}
+    ctx.beginPath();ctx.moveTo(ep.x1,ep.y1);ctx.lineTo(ep.x2,ep.y2);ctx.stroke();
+    ctx.setLineDash([]);ctx.restore();
+
+    if(!l.solved){
+      ctx.save();
+      const pulse=sel?1:0.7+0.3*Math.sin(Date.now()/500+i);
+      ctx.beginPath();ctx.arc(ep.qx,ep.qy,13,0,Math.PI*2);
+      ctx.fillStyle=sel?'#f59e0b':`rgba(245,158,11,${0.35*pulse+0.25})`;
+      ctx.strokeStyle=sel?'#fbbf24':'#f59e0b';ctx.lineWidth=2;
+      ctx.shadowBlur=sel?14:6;ctx.shadowColor='#f59e0b';ctx.fill();ctx.stroke();
+      ctx.shadowBlur=0;ctx.fillStyle='#1a0f08';
+      ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(l.puzzle.label+'?',ep.qx,ep.qy);
+      ctx.restore();
+    }
+  });
+
+  const t=Date.now()/600;
+  flies.forEach((f,i)=>{
+    if(f.got)return;
+    const p=0.65+0.35*Math.sin(t+i*2);
+    ctx.save();ctx.globalAlpha=p;
+    ctx.beginPath();ctx.arc(f.x,f.y,8,0,Math.PI*2);
+    ctx.fillStyle='#60a5fa';ctx.shadowBlur=18;ctx.shadowColor='#3b82f6';ctx.fill();
+    ctx.globalAlpha=1;ctx.strokeStyle='rgba(147,197,253,0.6)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(f.x-10,f.y-5,7,3,Math.PI/5,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.ellipse(f.x+10,f.y-5,7,3,-Math.PI/5,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(f.x-2.5,f.y-1,1.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(f.x+2.5,f.y-1,1.5,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+
+  const wx=CX+Math.cos(warpGate.ang)*warpGate.r,wy=CY+Math.sin(warpGate.ang)*warpGate.r;
+  const active=allSolved()&&allFlies(),gp=0.5+0.5*Math.sin(Date.now()/500);
+  ctx.save();ctx.beginPath();ctx.arc(wx,wy,20,0,Math.PI*2);
+  ctx.fillStyle=active?`rgba(139,92,246,${0.4+gp*0.3})`:'rgba(80,80,90,0.3)';
+  ctx.strokeStyle=active?'#a78bfa':'#555';ctx.lineWidth=2.5;
+  if(active){ctx.shadowBlur=24;ctx.shadowColor='#a78bfa';}
+  ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle=active?'#e9d5ff':'#888';ctx.font='bold 9px system-ui';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(active?'EXIT':'LOCKED',wx,wy);ctx.restore();
+
+  const ix=CX+Math.cos(itzi.ang)*itzi.r,iy=CY+Math.sin(itzi.ang)*itzi.r;
+  drawItzi(ix,iy);
+}
+
+function drawItzi(x,y){
+  ctx.save();
+  ctx.strokeStyle='#fb923c';ctx.lineWidth=1.6;
+  [[-12,-7],[-14,1],[-11,9],[12,-7],[14,1],[11,9]].forEach(([ox,oy])=>{
+    ctx.beginPath();ctx.moveTo(x+Math.sign(ox)*8,y+oy*0.3);ctx.lineTo(x+ox,y+oy);ctx.stroke();
+  });
+  ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);
+  ctx.fillStyle='#3b82f6';ctx.shadowBlur=10;ctx.shadowColor='#3b82f6';ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(x-4,y-3,4,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+4,y-3,4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';
+  ctx.beginPath();ctx.arc(x-3.5,y-2.5,2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+4.5,y-2.5,2,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function loop(){physics();draw();requestAnimationFrame(loop);}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'){keys.left=true;e.preventDefault();}
+  if(e.key==='ArrowRight'){keys.right=true;e.preventDefault();}
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='ArrowLeft')keys.left=false;
+  if(e.key==='ArrowRight')keys.right=false;
+});
+function holdBtn(el,prop){
+  const start=()=>{keys[prop]=true;},end=()=>{keys[prop]=false;};
+  el.addEventListener('mousedown',start);el.addEventListener('mouseup',end);el.addEventListener('mouseleave',end);
+  el.addEventListener('touchstart',e=>{e.preventDefault();start();});el.addEventListener('touchend',e=>{e.preventDefault();end();});
+}
+holdBtn(document.getElementById('rot-left'),'left');
+holdBtn(document.getElementById('rot-right'),'right');
+
+canvas.addEventListener('click',e=>{
+  if(gamePhase!=='playing')return;
+  const r=canvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(W/r.width),my=(e.clientY-r.top)*(H/r.height);
+  let hit=null;
+  lines.forEach((l,i)=>{if(l.solved)return;const ep=lineEndpoints(l);if(Math.hypot(mx-ep.qx,my-ep.qy)<20)hit=i;});
+  if(hit!==null){
+    selectedLine=hit;const p=lines[hit].puzzle;
+    document.getElementById('hint-area').innerHTML='<strong>Find angle '+p.label+'</strong> — '+p.known+'<br><em>Rule: '+p.rule+'</em>';
+    document.getElementById('ans-input').value='';document.getElementById('feedback').textContent='';
+    document.getElementById('ans-input').focus();
+  }
+});
+
+document.getElementById('btn-check').addEventListener('click',solve);
+document.getElementById('ans-input').addEventListener('keydown',e=>{if(e.key==='Enter')solve();});
+function solve(){
+  if(selectedLine===null){document.getElementById('feedback').textContent='Click a glowing ? angle first!';return;}
+  const l=lines[selectedLine],p=l.puzzle;
+  const val=parseInt(document.getElementById('ans-input').value,10);
+  if(isNaN(val)){document.getElementById('feedback').textContent='Enter a number.';return;}
+  const fb=document.getElementById('feedback');
+  if(val===p.answer){
+    fb.textContent='✓ Correct! Web line cleared.';fb.className='correct-fb';
+    l.solved=true;l.reappearTimer=300;
+    score+=Math.max(100,300-hintsUsed*50);hintsUsed=0;
+    selectedLine=null;document.getElementById('ans-input').value='';
+    if(allSolved()&&allFlies())document.getElementById('hint-area').innerHTML='All clear! Roll Itzi to the glowing <strong>EXIT</strong> gate!';
+    else if(allSolved())document.getElementById('hint-area').innerHTML='All webs cleared! Now collect the remaining <strong>blue glo-flies</strong>.';
+    else document.getElementById('hint-area').innerHTML='Nice! Roll on and click the next <strong>? angle</strong>.';
+    updateHUD();
+  } else {
+    fb.textContent='✗ Wrong — Itzi loses energy! Try again.';fb.className='wrong-fb';
+    energy-=8;updateHUD();
+  }
+}
+document.getElementById('btn-hint').addEventListener('click',()=>{
+  if(selectedLine===null){document.getElementById('feedback').textContent='Select a ? angle first.';return;}
+  document.getElementById('hint-area').innerHTML='<strong>💡 Hint:</strong> '+lines[selectedLine].puzzle.hint;
+  hintsUsed++;
+});
+document.getElementById('btn-restart').addEventListener('click',()=>initStage());
+
+initStage();loop();
+</script>
+</body>
+</html>
